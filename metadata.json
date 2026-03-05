@@ -1,0 +1,7 @@
+{
+  "name": "SyncSenta",
+  "description": "AI-Powered Education OS for Kenya, aligned with the Competency-Based Curriculum (CBC). Features Mwalimu AI, Teacher Resource Hub, and School Operational Consultant.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

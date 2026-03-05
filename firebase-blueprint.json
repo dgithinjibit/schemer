@@ -1,0 +1,43 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user identity and role information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["student", "teacher", "headteacher", "officer"] },
+        "schoolId": { "type": "string" },
+        "grade": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "SchemeOfWork": {
+      "title": "Scheme of Work",
+      "description": "A 14-week scheme of work generated for a specific grade and subject.",
+      "type": "object",
+      "properties": {
+        "teacherId": { "type": "string" },
+        "learningArea": { "type": "string" },
+        "grade": { "type": "string" },
+        "term": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["teacherId", "learningArea", "grade", "term", "content"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Collection of user profiles."
+    },
+    "schemesOfWork/{schemeId}": {
+      "schema": "SchemeOfWork",
+      "description": "Collection of generated 14-week schemes of work."
+    }
+  }
+}
