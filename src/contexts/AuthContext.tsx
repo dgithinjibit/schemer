@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../firebase';
-import { onAuthStateChanged, User, signInAnonymously } from 'firebase/auth';
-import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { onAuthStateChanged, User, signInAnonymously, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { UserProfile } from '../types';
 
 interface AuthContextType {
@@ -9,6 +9,8 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   isAuthReady: boolean;
+  signInWithGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -16,6 +18,8 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   isAuthReady: false,
+  signInWithGoogle: async () => {},
+  logout: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -26,61 +30,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
-  useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        setIsAuthReady(true);
-      } else {
-        // Automatically sign in anonymously for Developer Mode
-        try {
-          const cred = await signInAnonymously(auth);
-          setUser(cred.user);
-        } catch (error) {
-          console.error("Failed to sign in anonymously:", error);
-        }
-        setIsAuthReady(true);
-      }
-    });
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Google Sign-In Error:", error);
+    }
+  };
 
-    return () => unsubscribeAuth();
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      setUser(null);
+      setProfile(null);
+    } catch (error) {
+      console.error("Logout Error:", error);
+    }
+  };
+
+  useEffect(() => {
+    // Mock Developer User for immediate access without Firebase Auth
+    setUser({
+      uid: 'dev-user-123',
+      email: 'dgithinji331@gmail.com',
+      displayName: 'Mwalimu Developer',
+    } as any);
+    
+    setProfile({
+      uid: 'dev-user-123',
+      email: 'dgithinji331@gmail.com',
+      displayName: 'Mwalimu Developer',
+      role: 'headteacher',
+      createdAt: new Date().toISOString(),
+    });
+    
+    setLoading(false);
+    setIsAuthReady(true);
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      const unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), async (snapshot) => {
-        if (snapshot.exists()) {
-          setProfile(snapshot.data() as UserProfile);
-          setLoading(false);
-        } else {
-          // If no profile exists (common for anonymous users), create a default developer profile
-          const devProfile: UserProfile = {
-            uid: user.uid,
-            email: 'dgithinji331@gmail.com', // Developer email for rule bypass
-            displayName: 'Developer',
-            role: 'headteacher',
-            createdAt: new Date().toISOString(),
-          };
-          
-          try {
-            await setDoc(doc(db, 'users', user.uid), devProfile);
-            setProfile(devProfile);
-          } catch (err) {
-            console.error("Error creating dev profile:", err);
-          }
-          setLoading(false);
-        }
-      }, (error) => {
-        console.error("Error fetching profile:", error);
-        setLoading(false);
-      });
-
-      return () => unsubscribeProfile();
-    }
-  }, [user]);
+  // Removed Firebase Auth listeners and profile syncing for now
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isAuthReady }}>
+    <AuthContext.Provider value={{ user, profile, loading, isAuthReady, signInWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

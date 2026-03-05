@@ -1,8 +1,13 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import axios from "axios";
-import { PDFParse } from "pdf-parse";
+import { createRequire } from "module";
 import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
+
+const require = createRequire(import.meta.url);
+const pdf = require("pdf-parse");
 
 dotenv.config();
 
@@ -11,11 +16,29 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// Curriculum Mapping (Example from user request)
-const CURRICULUM_FILES: Record<string, string> = {
-  "grade4_science": "1vrC5CJ02MpDm9v4u3-qwCze9yPa9HcEZ",
-  // Add more mappings here as needed
-};
+// Load Curriculum Mapping from external file
+const MAPPING_PATH = path.resolve("curriculum-mapping.json");
+let CURRICULUM_FILES: Record<string, string> = {};
+
+function loadMapping() {
+  try {
+    if (fs.existsSync(MAPPING_PATH)) {
+      const data = fs.readFileSync(MAPPING_PATH, "utf-8");
+      CURRICULUM_FILES = JSON.parse(data);
+      console.log(`Loaded ${Object.keys(CURRICULUM_FILES).length} curriculum mappings.`);
+    }
+  } catch (e) {
+    console.error("Failed to load curriculum mapping:", e);
+  }
+}
+
+loadMapping();
+
+// Watch for changes in mapping file (optional but helpful for ideation)
+fs.watchFile(MAPPING_PATH, () => {
+  console.log("Curriculum mapping file changed. Reloading...");
+  loadMapping();
+});
 
 // API Endpoint to get curriculum text
 app.get("/api/curriculum/:key", async (req, res) => {
@@ -32,17 +55,16 @@ app.get("/api/curriculum/:key", async (req, res) => {
     
     const response = await axios.get(url, { responseType: 'arraybuffer' });
     
-    // Use the new PDFParse API
-    const parser = new PDFParse({ data: response.data });
-    const result = await parser.getText();
+    // Correct usage of pdf-parse
+    const data = await pdf(Buffer.from(response.data));
     
     res.json({ 
-      text: result.text,
-      pages: result.total
+      text: data.text,
+      pages: data.numpages
     });
   } catch (error: any) {
     console.error("Error fetching or parsing PDF:", error.message);
-    res.status(500).json({ error: "Failed to process curriculum PDF. Google Drive might be blocking the request." });
+    res.status(500).json({ error: "Failed to process curriculum PDF. Google Drive might be blocking the request or the PDF is invalid." });
   }
 });
 
